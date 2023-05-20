@@ -26,7 +26,7 @@ fn sign(secret: [32]u8, msg: [32]u8, aux_rand: [32]u8) ![64]u8 {
         d = d.neg();
     }
     var t: [32]u8 = undefined;
-    for (d.toBytes(.Big)) |byte, i| {
+    for (d.toBytes(.Big), 0..) |byte, i| {
         t[i] = byte ^ taggedHash("BIP0340/aux", aux_rand[0..])[i];
     }
     var to_hash: [96]u8 = undefined;
