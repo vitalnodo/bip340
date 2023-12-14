@@ -19,55 +19,55 @@ fn taggedHash(tag: []const u8, msg: []const u8) [32]u8 {
 }
 
 fn sign(secret: [32]u8, msg: [32]u8, aux_rand: [32]u8) ![64]u8 {
-    const d0 = try Scalar.fromBytes(secret, .Big);
-    const P = try Secp256k1.basePoint.mulPublic(d0.toBytes(.Big), .Big);
+    const d0 = try Scalar.fromBytes(secret, .big);
+    const P = try Secp256k1.basePoint.mulPublic(d0.toBytes(.big), .big);
     var d = d0;
     if (P.affineCoordinates().y.isOdd()) {
         d = d.neg();
     }
     var t: [32]u8 = undefined;
-    for (d.toBytes(.Big), 0..) |byte, i| {
+    for (d.toBytes(.big), 0..) |byte, i| {
         t[i] = byte ^ taggedHash("BIP0340/aux", aux_rand[0..])[i];
     }
     var to_hash: [96]u8 = undefined;
-    mem.copy(u8, to_hash[0..32], t[0..]);
-    mem.copy(u8, to_hash[32..64], P.toCompressedSec1()[1..]);
-    mem.copy(u8, to_hash[64..96], msg[0..]);
+    @memcpy(to_hash[0..32], t[0..]);
+    @memcpy(to_hash[32..64], P.toCompressedSec1()[1..]);
+    @memcpy(to_hash[64..96], msg[0..]);
     const k0: [32]u8 = taggedHash("BIP0340/nonce", to_hash[0..]); // rand
-    var k = try Scalar.fromBytes(k0, .Big);
-    var R = try Secp256k1.basePoint.mul(k0, .Big);
+    var k = try Scalar.fromBytes(k0, .big);
+    var R = try Secp256k1.basePoint.mul(k0, .big);
     if (R.affineCoordinates().y.isOdd()) {
         k = k.neg();
     }
-    mem.copy(u8, to_hash[0..32], R.toCompressedSec1()[1..]);
-    mem.copy(u8, to_hash[32..64], P.toCompressedSec1()[1..]);
-    mem.copy(u8, to_hash[64..96], msg[0..]);
+    @memcpy(to_hash[0..32], R.toCompressedSec1()[1..]);
+    @memcpy(to_hash[32..64], P.toCompressedSec1()[1..]);
+    @memcpy(to_hash[64..96], msg[0..]);
     const e: [32]u8 = taggedHash("BIP0340/challenge", to_hash[0..]);
     var res: [64]u8 = undefined;
-    mem.copy(u8, res[0..32], R.toCompressedSec1()[1..]);
-    var seems_as_final = (try Scalar.fromBytes(e, .Big)).mul(d).add(k);
-    mem.copy(u8, res[32..64], seems_as_final.toBytes(.Big)[0..]);
+    @memcpy(res[0..32], R.toCompressedSec1()[1..]);
+    var seems_as_final = (try Scalar.fromBytes(e, .big)).mul(d).add(k);
+    @memcpy(res[32..64], seems_as_final.toBytes(.big)[0..]);
     return res;
 }
 
 fn verify(public_key: [32]u8, msg: [32]u8, signature: [64]u8) !bool {
-    const Px = try Secp256k1.Fe.fromBytes(public_key, .Big);
+    const Px = try Secp256k1.Fe.fromBytes(public_key, .big);
     const Py = try Secp256k1.recoverY(Px, false);
     const P = try Secp256k1.fromAffineCoordinates(.{ .x = Px, .y = Py });
-    const r = try Secp256k1.Fe.fromBytes(signature[0..32].*, .Big);
-    const s = try Secp256k1.scalar.Scalar.fromBytes(signature[32..64].*, .Big);
+    const r = try Secp256k1.Fe.fromBytes(signature[0..32].*, .big);
+    const s = try Secp256k1.scalar.Scalar.fromBytes(signature[32..64].*, .big);
     var to_hash: [96]u8 = undefined;
-    mem.copy(u8, to_hash[0..32], signature[0..32]);
-    mem.copy(u8, to_hash[32..64], public_key[0..]);
-    mem.copy(u8, to_hash[64..96], msg[0..]);
+    @memcpy(to_hash[0..32], signature[0..32]);
+    @memcpy(to_hash[32..64], public_key[0..]);
+    @memcpy(to_hash[64..96], msg[0..]);
     const e = try Scalar.fromBytes(
         taggedHash("BIP0340/challenge", to_hash[0..]),
-        .Big,
+        .big,
     );
     const R = (try Secp256k1.basePoint.mulPublic(
-        s.toBytes(.Big),
-        .Big,
-    )).sub(try P.mul(e.toBytes(.Big), .Big));
+        s.toBytes(.big),
+        .big,
+    )).sub(try P.mul(e.toBytes(.big), .big));
     if (R.affineCoordinates().y.isOdd()) {
         return false;
     }
@@ -87,7 +87,7 @@ test "sign" {
         signature: []const u8,
     };
 
-    var to_sign = [_]Vectors{
+    const to_sign = [_]Vectors{
         Vectors{
             .secret = "0000000000000000000000000000000000000000000000000000000000000003",
             .public = "F9308A019258C31049344F85F89D5229B531C845836F99B08601F113BCE036F9",
